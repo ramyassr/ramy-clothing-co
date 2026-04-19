@@ -10,15 +10,25 @@ interface ClothingItem {
 }
 
 export default function App() {
+    const [showSuccess, setShowSuccess] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [showCheckout, setShowCheckout] = useState(false);
     const [newItem, setNewItem] = useState({ name: '', color: 'Black', size: 'Medium', price: 0 });
     const [items, setItems] = useState<ClothingItem[]>([]);
     const [cart, setCart] = useState<ClothingItem[]>([]);
     const [filters, setFilters] = useState({ color: '', size: '' });
-    
+
     // User Details for Checkout
     const [customer, setCustomer] = useState({ name: '', email: '', address: '' });
+
+    useEffect(() => {
+        // Check if the URL has "?success=true"
+        const query = new URLSearchParams(window.location.search);
+        if (query.get('success')) {
+            setShowSuccess(true);
+            setCart([]); // Clear the cart since the order is finished!
+        }
+    }, []);
 
     useEffect(() => {
         const params = new URLSearchParams(filters).toString();
@@ -73,12 +83,54 @@ export default function App() {
         setFilters({ ...filters });
     };
 
-    const handleCheckout = (e: React.FormEvent) => {
+    // const handleCheckout = (e: React.FormEvent) => {
+    //     // e.preventDefault();
+    //     // console.log("Order Data:", { customer, cart, total: subtotal });
+    //     // alert(`Thank you ${customer.name}! Order for $${subtotal.toFixed(2)} placed (Simulation).`);
+    //     // setCart([]);
+    //     // setShowCheckout(false);
+    //     const handleCheckoutSubmit = async (e: React.FormEvent) => {
+    //         e.preventDefault();
+
+    //         const response = await fetch('http://localhost:5000/api/create-checkout-session', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ cartItems: cart }),
+    //         });
+
+    //         const data = await response.json();
+
+    //         if (data.url) {
+    //             // Redirect to the Stripe-hosted checkout page
+    //             window.location.href = data.url;
+    //         } else {
+    //             alert("Payment failed to initialize.");
+    //         }
+    //     };
+    // };
+    const handleCheckout = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Order Data:", { customer, cart, total: subtotal });
-        alert(`Thank you ${customer.name}! Order for $${subtotal.toFixed(2)} placed (Simulation).`);
-        setCart([]);
-        setShowCheckout(false);
+
+        try {
+            // 1. Send the cart to your backend
+            const response = await fetch('http://localhost:5000/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cartItems: cart }),
+            });
+
+            const data = await response.json();
+
+            if (data.url) {
+                // 2. Redirect the user to Stripe's hosted payment page
+                window.location.href = data.url;
+            } else {
+                alert("Error creating payment session: " + data.error);
+            }
+        } catch (err) {
+            console.error("Checkout Error:", err);
+            alert("Could not connect to the server.");
+        }
     };
 
     return (
@@ -88,6 +140,110 @@ export default function App() {
                 <h1>Ramy Clothing Co.</h1>
                 <p>Premium basics in Black, Grey, and White.</p>
             </header>
+            {showSuccess && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(255,255,255,0.95)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 3000,
+                    textAlign: 'center'
+                }}>
+                    <h1 style={{ fontSize: '3rem', marginBottom: '10px' }}>THANK YOU.</h1>
+                    <p style={{ fontSize: '1.2rem', color: '#555' }}>Your order has been placed successfully.</p>
+                    <p>A confirmation email (simulated) is on its way.</p>
+                    <button
+                        onClick={() => {
+                            setShowSuccess(false);
+                            window.history.replaceState({}, document.title, "/"); // Cleans the URL
+                        }}
+                        style={{
+                            marginTop: '30px',
+                            padding: '10px 20px',
+                            background: '#000',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        BACK TO STORE
+                    </button>
+                </div>
+            )}
+            {/* Admin Section */}
+            {/* Admin Toggle - Fixed to Top Right */}
+            <div style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                zIndex: 1000
+            }}>
+                <button
+                    onClick={() => setIsAdmin(!isAdmin)}
+                    style={{
+                        padding: '8px 15px',
+                        cursor: 'pointer',
+                        background: isAdmin ? '#ff4d4d' : '#f0f0f0',
+                        color: isAdmin ? '#fff' : '#000',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    {isAdmin ? "✕ Close Admin" : "⚙️ Admin"}
+                </button>
+            </div>
+            {isAdmin && (
+                <div style={{ marginTop: '30px', border: '2px solid #000', padding: '20px' }}>
+                    <h2>Database Management</h2>
+                    <form onSubmit={handleAdminSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap: 'wrap' }}>
+                        <input type="text" placeholder="Name" required onChange={e => setNewItem({ ...newItem, name: e.target.value })} style={inputStyle} />
+                        <input type="number" placeholder="Price" required onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })} style={inputStyle} />
+                        <select onChange={e => setNewItem({ ...newItem, color: e.target.value })} style={inputStyle}>
+                            <option value="Black">Black</option>
+                            <option value="Grey">Grey</option>
+                            <option value="White">White</option>
+                        </select>
+                        <select onChange={e => setNewItem({ ...newItem, size: e.target.value })} style={inputStyle}>
+                            <option value="Small">Small</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Large">Large</option>
+                        </select>
+                        <button type="submit" style={{ padding: '0 20px', cursor: 'pointer' }}>Add to DB</button>
+                    </form>
+
+                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '2px solid #eee' }}>
+                                <th>ID</th><th>Name</th><th>Color</th><th>Size</th><th>Price</th><th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {items.map(item => (
+                                <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
+                                    <td>{item.id}</td>
+                                    <td>{item.name}</td>
+                                    <td>{item.color}</td>
+                                    <td>{item.size}</td>
+                                    <td>${item.price.toFixed(2)}</td>
+                                    <td>
+                                        <button onClick={() => deleteItem(item.id)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer' }}>Delete</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {!showCheckout ? (
                 <>
@@ -109,7 +265,7 @@ export default function App() {
 
                     {/* Main Display Area */}
                     <div style={{ display: 'flex', gap: '20px' }}>
-                        <section style={{ flex: 2, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <section style={{ flex: 2, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
                             {items.map(item => (
                                 <div key={item.id} style={{ border: '1px solid #eee', padding: '15px', borderRadius: '4px' }}>
                                     <h3>{item.name}</h3>
@@ -139,14 +295,14 @@ export default function App() {
                                     </div>
                                 </div>
                             ))}
-                            
+
                             {cart.length > 0 ? (
                                 <div style={{ marginTop: '20px', borderTop: '2px solid #000', paddingTop: '10px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 'bold' }}>
                                         <span>Total:</span>
                                         <span>${subtotal.toFixed(2)}</span>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setShowCheckout(true)}
                                         style={{ width: '100%', marginTop: '20px', padding: '10px', background: '#000', color: '#fff', cursor: 'pointer' }}
                                     >
@@ -164,64 +320,15 @@ export default function App() {
                     <h2>Checkout</h2>
                     <p>Total Amount: <strong>${subtotal.toFixed(2)}</strong></p>
                     <form onSubmit={handleCheckout} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        <input type="text" placeholder="Full Name" required onChange={e => setCustomer({...customer, name: e.target.value})} style={inputStyle} />
-                        <input type="email" placeholder="Email" required onChange={e => setCustomer({...customer, email: e.target.value})} style={inputStyle} />
-                        <textarea placeholder="Shipping Address" required onChange={e => setCustomer({...customer, address: e.target.value})} style={{...inputStyle, height: '80px'}} />
+                        <input type="text" placeholder="Full Name" required onChange={e => setCustomer({ ...customer, name: e.target.value })} style={inputStyle} />
+                        <input type="email" placeholder="Email" required onChange={e => setCustomer({ ...customer, email: e.target.value })} style={inputStyle} />
+                        <textarea placeholder="Shipping Address" required onChange={e => setCustomer({ ...customer, address: e.target.value })} style={{ ...inputStyle, height: '80px' }} />
                         <button type="submit" style={{ padding: '15px', background: '#000', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
                             Complete Order
                         </button>
                     </form>
                 </div>
             )}
-
-            {/* Admin Section */}
-            <div style={{ marginTop: '50px', borderTop: '1px dotted #ccc', paddingTop: '20px' }}>
-                <button onClick={() => setIsAdmin(!isAdmin)} style={{ cursor: 'pointer' }}>
-                    {isAdmin ? "Close Admin" : "Open Admin Panel"}
-                </button>
-                {isAdmin && (
-                    <div style={{ marginTop: '30px', border: '2px solid #000', padding: '20px' }}>
-                        <h2>Database Management</h2>
-                        <form onSubmit={handleAdminSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap: 'wrap' }}>
-                            <input type="text" placeholder="Name" required onChange={e => setNewItem({ ...newItem, name: e.target.value })} style={inputStyle} />
-                            <input type="number" placeholder="Price" required onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })} style={inputStyle} />
-                            <select onChange={e => setNewItem({ ...newItem, color: e.target.value })} style={inputStyle}>
-                                <option value="Black">Black</option>
-                                <option value="Grey">Grey</option>
-                                <option value="White">White</option>
-                            </select>
-                            <select onChange={e => setNewItem({ ...newItem, size: e.target.value })} style={inputStyle}>
-                                <option value="Small">Small</option>
-                                <option value="Medium">Medium</option>
-                                <option value="Large">Large</option>
-                            </select>
-                            <button type="submit" style={{ padding: '0 20px', cursor: 'pointer' }}>Add to DB</button>
-                        </form>
-
-                        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid #eee' }}>
-                                    <th>ID</th><th>Name</th><th>Color</th><th>Size</th><th>Price</th><th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {items.map(item => (
-                                    <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                                        <td>{item.id}</td>
-                                        <td>{item.name}</td>
-                                        <td>{item.color}</td>
-                                        <td>{item.size}</td>
-                                        <td>${item.price.toFixed(2)}</td>
-                                        <td>
-                                            <button onClick={() => deleteItem(item.id)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer' }}>Delete</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
         </div>
     );
 }

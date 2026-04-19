@@ -15,7 +15,13 @@ To get the app running on your machine, follow these steps:
 git clone [https://github.com/ramyassr/ramy-clothing-co.git](https://github.com/ramyassr/ramy-clothing-co.git)
 cd ramy-clothing-co
 ```
-### 2. Setup the Backend
+### 2. 🔑 Environment Variables
+To run the backend, create a `.env` file in the `/backend` folder with:
+
+| Variable | Description |
+| :--- | :--- |
+| `STRIPE_SECRET_KEY` | Your Stripe Test Secret Key (starts with sk_test_)
+### 3. Setup the Backend
 Open a terminal and run:
 ```bash
 cd backend
@@ -25,7 +31,7 @@ npx ts-node server.ts
 ```
 The API will be live at http://localhost:5000
 
-### 3. Setup the Frontend
+### 4. Setup the Frontend
 Open a second terminal and run:
 ```bash
 cd frontend
@@ -61,6 +67,38 @@ Live Inventory View: A table showing exactly what is currently in your local SQL
 Direct Entry: Add new products to the database via a simple form.
 
 Permanent Delete: Remove old or test data from the SQLite file with one click.
+
+💳 Payment Integration (Stripe Test Mode)
+
+The app features a fully integrated checkout flow using Stripe Checkout. This allows for secure, PCI-compliant transactions without the app ever "touching" sensitive credit card data.
+
+How it works:
+
+Server-Side Security: When a user clicks "Checkout," the frontend sends the cart items to our Node.js backend. The backend validates prices against the local SQLite database to prevent price tampering.
+
+Stripe Session: The backend communicates with Stripe to create a unique Checkout Session and returns a secure URL.
+
+Redirection: The user is redirected to a Stripe-hosted payment page.
+
+Verification: Upon successful payment, Stripe redirects the user back to the Ramy Clothing Co. storefront.
+
+🛠️ How to Test Payments:
+
+Since the app is currently in Test Mode, you do not need to use a real credit card.
+
+Ensure you have a STRIPE_SECRET_KEY in your .env file.
+
+Add items to your cart and proceed to checkout.
+
+When prompted by Stripe for card details, use the following:
+
+Card Number: 4242 4242 4242 4242
+
+Expiry: Any future date (e.g., 12/28)
+
+CVC: 123
+
+After clicking "Pay," you will be redirected back to the app, and you can verify the transaction in your Stripe Dashboard.
 
 ## 🛠️ Tech Stack
 Frontend: React, TypeScript, Vite

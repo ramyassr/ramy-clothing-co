@@ -1,6 +1,7 @@
 import express from 'express';
 import Database from 'better-sqlite3';
 import cors from 'cors';
+import { createCheckoutSession } from './payment.ts';
 
 const app = express();
 const db = new Database('retail.db');
@@ -66,6 +67,16 @@ app.post('/api/admin/add', (req, res) => {
 app.delete('/api/admin/delete/:id', (req, res) => {
   db.prepare('DELETE FROM clothes WHERE id = ?').run(req.params.id);
   res.json({ success: true });
+});
+
+app.post('/api/create-checkout-session', async (req, res) => {
+    try {
+        const { cartItems } = req.body;
+        const session = await createCheckoutSession(cartItems, db);
+        res.json({ id: session.id, url: session.url });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.listen(5000, () => console.log('Backend API at http://localhost:5000'));
